@@ -9,12 +9,14 @@ async function main() {
   }
 
   const pool = new Pool({ connectionString, max: 1 });
-  const db = drizzle(pool);
+  const client = await pool.connect();
+  const db = drizzle({ client });
 
   try {
     await migrate(db, { migrationsFolder: "./drizzle" });
     console.log("Migrations applied successfully");
   } finally {
+    client.release();
     await pool.end();
   }
 }
