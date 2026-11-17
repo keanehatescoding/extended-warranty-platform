@@ -28,7 +28,7 @@ npm install
 # point .env at a Postgres instance, see .env.example
 npm run db:generate   # drizzle-kit: emit SQL migrations from the schema
 npm run db:migrate    # apply them
-npm run db:seed      # seed placeholder (no seed data defined yet)
+npm run db:seed      # seed underwriters, retailers and plans
 npm run dev           # Next.js dev server on :3000
 ```
 
