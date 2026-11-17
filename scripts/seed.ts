@@ -1,20 +1,16 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import {
-  underwriters,
-  retailers,
-  plans,
-} from "../src/db/schema";
+import { underwriters, retailers, plans } from "../src/db/schema";
 
 const UNDERWRITERS = [
   {
     name: "Britam Insurance Company Limited",
-    iraLicense: "IRA/01/2025/00147",
+    ira_license: "IRA/01/2025/00147",
     commissionBps: 1500,
   },
   {
     name: "APA Insurance Limited",
-    iraLicense: "IRA/01/2025/00023",
+    ira_license: "IRA/01/2025/00023",
     commissionBps: 1500,
   },
 ];
@@ -35,7 +31,7 @@ const RETAILERS = [
 ];
 
 // Price in KES as a percentage of retail price (bps). 1000 bps = 10%.
-const PLANS = [
+const PLANS: Omit<typeof plans.$inferInsert, "underwriterId">[] = [
   {
     code: "SMART-12",
     name: "Smartphone - 12 months",
@@ -113,20 +109,26 @@ async function main() {
       return;
     }
 
-    const insertedUnderwriters = await db
-      .insert(underwriters)
-      .values(UNDERWRITERS)
-      .returning();
-    const insertedRetailers = await db
-      .insert(retailers)
-      .values(RETAILERS)
-      .returning();
+    const { insertedUnderwriters, insertedRetailers, planRows } =
+      await db.transaction(async (tx) => {
+        const insertedUnderwriters = await tx
+          .insert(underwriters)
+          .values(UNDERWRITERS)
+          .returning();
+        const insertedRetailers = await tx
+          .insert(retailers)
+          .values(RETAILERS)
+          .returning();
 
-    const planRows = PLANS.map((plan, index) => ({
-      ...plan,
-      underwriterId: insertedUnderwriters[index % insertedUnderwriters.length].id,
-    }));
-    await db.insert(plans).values(planRows);
+        const planRows = PLANS.map((plan, index) => ({
+          ...plan,
+          underwriterId:
+            insertedUnderwriters[index % insertedUnderwriters.length].id,
+        }));
+        await tx.insert(plans).values(planRows);
+
+        return { insertedUnderwriters, insertedRetailers, planRows };
+      });
 
     console.log(
       `Seeded ${insertedUnderwriters.length} underwriters, ` +
